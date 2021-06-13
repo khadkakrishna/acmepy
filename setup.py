@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='acmepy',
-    version='0.1',
+    version='0.0.1',
     license='Apache 2.0',
     description = 'Acme client to generate SSL Certificates for the websites',
     long_description=long_description,
@@ -13,7 +13,6 @@ setup(
     author = 'Krishna Khadka',
     author_email = 'krishnakhadka2802@gmail.com',
     url="https://github.com/khadkakrishna/acmepy/",
-    download_url = 'https://github.com/khadkakrishna/acmepy/archive/v_01.tar.gz',
     keywords = ['acme', 'letsencrypt', 'sslwebsite','acmeclient'],
     install_requires=[
         'acme'
