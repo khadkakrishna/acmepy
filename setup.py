@@ -1,10 +1,15 @@
 from setuptools import setup
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='acmepy',
     version='0.1',
     license='Apache 2.0',
     description = 'Acme client to generate SSL Certificates for the websites',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author = 'Krishna Khadka',
     author_email = 'krishnakhadka2802@gmail.com',
     url="https://github.com/khadkakrishna/acmepy/",
