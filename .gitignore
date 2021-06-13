@@ -1,2 +1,5 @@
 # .gitignore
 __pycache__
+acmepy.egg-info/
+dist/
+build/
