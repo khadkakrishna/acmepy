@@ -11,8 +11,8 @@ def main(argv=None):
         prog='python3 main.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent("""\
-            This python script helps to getsigned TLS certificate from Let's Encrypt using the ACME protocol. 
-            It will need to be run on the server and have access to the private account key."""),
+            This python script helps to get signed TLS certificate from Let's Encrypt using the ACME protocol. 
+            It will need to be run on the server and should have access to the private account key."""),
         epilog="Refer the documentation for full usage."
     )
     parser.add_argument("--account-key", required=True, help="path to  account private key")
@@ -21,7 +21,8 @@ def main(argv=None):
     parser.add_argument("--log-level", choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG'], default="INFO", help="log-level for the logs")
     args = parser.parse_args(argv)
     logger.setLevel(args.log_level)
-    GetCertificate.get_cert(args.account_key, args.csr, args.acme_dir, args.log_level, log=logger)
+    signed_crt = GetCertificate.get_cert(args.account_key, args.csr, args.acme_dir, logger)
+    sys.stdout.write(signed_crt)
 
 if __name__ == "__main__": 
     main(sys.argv[1:])
