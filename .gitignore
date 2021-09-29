@@ -5,3 +5,4 @@ steps.sh
 acmepy.egg-info/
 dist/
 build/
+.DS_store
