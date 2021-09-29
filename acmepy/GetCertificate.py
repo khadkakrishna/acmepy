@@ -1,9 +1,18 @@
 from acmepy import UtilityFunctions as uf
-import re, binascii, json, hashlib, os 
+import re, binascii, json, hashlib, os, time 
 
 DEFAULT_DIRECTORY_URL = "https://acme-v02.api.letsencrypt.org/directory"
 
 def get_cert(account_key, csr, acme_dir, logger, contact=None):
+  # helper function - poll until complete
+  def _poll_until_not(url, pending_statuses, err_msg):
+    result, t0 = None, time.time()
+    while result is None or result['status'] in pending_statuses:
+        assert (time.time() - t0 < 3600), "Polling timeout" # 1 hour timeout
+        time.sleep(0 if result is None else 2)
+        result, _, _ = uf.send_signed_request(url, None, directory, alg, acct_headers, account_key, jwk,  err_msg)
+    return result
+    
   directory, acct_headers, alg, jwk = None, None, None, None # global variables
   logger.info("Parsing account key...")
   out = uf._cmd(["openssl", "rsa", "-in", account_key, "-noout", "-text"], err_msg="OpenSSL Error")
@@ -88,6 +97,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
   logger.info("Signing certificate...")
   csr_der = uf._cmd(["openssl", "req", "-in", csr, "-outform", "DER"], err_msg="DER Export Error")
   uf._send_signed_request(order['finalize'], {"csr": uf._base64(csr_der)}, directory, alg, acct_headers, account_key, jwk, "Error finalizing order")
+
 
   # poll the order to monitor when it's done
   order = uf._poll_until_not(order_headers['Location'], ["pending", "processing"], "Error checking order status")
