@@ -1,4 +1,4 @@
-import base64, subprocess, json, copy 
+import base64, subprocess, json, time
 from urllib.request import urlopen, Request
 
 def _base64(text):
@@ -55,4 +55,11 @@ def _send_signed_request(url, payload, directory, alg, acct_headers, account_key
     except IndexError: # retry bad nonces (they raise IndexError)
         return _send_signed_request(url, payload, err_msg, depth=(depth + 1))
 
-    
+# helper function - poll until complete
+def _poll_until_not(url, pending_statuses, err_msg):
+    result, t0 = None, time.time()
+    while result is None or result['status'] in pending_statuses:
+        assert (time.time() - t0 < 3600), "Polling timeout" # 1 hour timeout
+        time.sleep(0 if result is None else 2)
+        result, _, _ = _send_signed_request(url, None, err_msg)
+    return result
