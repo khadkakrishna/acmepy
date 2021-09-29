@@ -12,7 +12,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
         time.sleep(0 if result is None else 2)
         result, _, _ = uf.send_signed_request(url, None, directory, alg, acct_headers, account_key, jwk,  err_msg)
     return result
-    
+
   directory, acct_headers, alg, jwk = None, None, None, None # global variables
   logger.info("Parsing account key...")
   out = uf._cmd(["openssl", "rsa", "-in", account_key, "-noout", "-text"], err_msg="OpenSSL Error")
@@ -87,7 +87,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
 
       # say the challenge is done
       uf._send_signed_request(challenge['url'], {}, directory, alg, acct_headers, account_key, jwk, "Error submitting challenges: {0}".format(domain))
-      authorization = uf._poll_until_not(auth_url, ["pending"], "Error checking challenge status for {0}".format(domain))
+      authorization = _poll_until_not(auth_url, ["pending"], "Error checking challenge status for {0}".format(domain))
       if authorization['status'] != "valid":
           raise ValueError("Challenge did not pass for {0}: {1}".format(domain, authorization))
       os.remove(wellknown_path)
@@ -100,7 +100,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
 
 
   # poll the order to monitor when it's done
-  order = uf._poll_until_not(order_headers['Location'], ["pending", "processing"], "Error checking order status")
+  order = _poll_until_not(order_headers['Location'], ["pending", "processing"], "Error checking order status")
   if order['status'] != "valid":
       raise ValueError("Order failed: {0}".format(order))
 
