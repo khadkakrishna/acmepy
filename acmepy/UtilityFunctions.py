@@ -1,4 +1,4 @@
-import base64, subprocess, json
+import base64, subprocess, json, copy 
 from urllib.request import urlopen, Request
 
 def _base64(text):
@@ -40,3 +40,19 @@ def _do_request(url, data=None, err_msg="Error", depth=0):
     if code not in [200, 201, 204]:
         raise ValueError("{0}:\nUrl: {1}\nData: {2}\nResponse Code: {3}\nResponse: {4}".format(err_msg, url, data, code, resp_data))
     return resp_data, code, headers
+
+def _send_signed_request(url, payload, directory, alg, acct_headers, account_key, jwk, err_msg, depth=0):
+    payload64 = "" if payload is None else _base64(json.dumps(payload).encode('utf8'))
+    new_nonce = _do_request(directory['newNonce'])[2]['Replay-Nonce']
+    protected = {"url": url, "alg": alg, "nonce": new_nonce}
+    protected.update({"jwk": jwk} if acct_headers is None else {"kid": acct_headers['Location']})
+    protected64 = _base64(json.dumps(protected).encode('utf8'))
+    protected_input = "{0}.{1}".format(protected64, payload64).encode('utf8')
+    out = _cmd(["openssl", "dgst", "-sha256", "-sign", account_key], stdin=subprocess.PIPE, cmd_input=protected_input, err_msg="OpenSSL Error")
+    data = json.dumps({"protected": protected64, "payload": payload64, "signature": _base64(out)})
+    try:
+        return _do_request(url, data=data.encode('utf8'), err_msg=err_msg, depth=depth)
+    except IndexError: # retry bad nonces (they raise IndexError)
+        return _send_signed_request(url, payload, err_msg, depth=(depth + 1))
+
+    

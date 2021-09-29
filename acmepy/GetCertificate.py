@@ -13,12 +13,12 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
   pub_exp = "0{0}".format(pub_exp) if len(pub_exp) % 2 else pub_exp
   alg = "RS256"
   jwk = {
-      "e": uf._b64(binascii.unhexlify(pub_exp.encode("utf-8"))),
+      "e": uf._base64(binascii.unhexlify(pub_exp.encode("utf-8"))),
       "kty": "RSA",
-      "n": uf._b64(binascii.unhexlify(re.sub(r"(\s|:)", "", pub_hex).encode("utf-8"))),
+      "n": uf._base64(binascii.unhexlify(re.sub(r"(\s|:)", "", pub_hex).encode("utf-8"))),
   }
   accountkey_json = json.dumps(jwk, sort_keys=True, separators=(',', ':'))
-  thumbprint = uf._b64(hashlib.sha256(accountkey_json.encode('utf8')).digest())
+  thumbprint = uf._base64(hashlib.sha256(accountkey_json.encode('utf8')).digest())
 
   # find domains
   logger.info("Parsing CSR...")
@@ -43,21 +43,21 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
   # create account, update contact details (if any), and set the global key identifier
   logger.info("Registering account...")
   reg_payload = {"termsOfServiceAgreed": True}
-  account, code, acct_headers = uf._send_signed_request(directory['newAccount'], reg_payload, "Error registering")
+  account, code, acct_headers = uf._send_signed_request(directory['newAccount'], reg_payload, directory, alg, acct_headers, account_key, jwk, "Error registering")
   logger.info("Registered!" if code == 201 else "Already registered!")
   if contact is not None:
-      account, _, _ = uf._send_signed_request(acct_headers['Location'], {"contact": contact}, "Error updating contact details")
+      account, _, _ = uf._send_signed_request(acct_headers['Location'], {"contact": contact}, directory, alg, acct_headers, account_key, jwk, "Error updating contact details")
       logger.info("Updated contact details:\n{0}".format("\n".join(account['contact'])))
 
   # create a new order
   logger.info("Creating new order...")
   order_payload = {"identifiers": [{"type": "dns", "value": d} for d in domains]}
-  order, _, order_headers = uf._send_signed_request(directory['newOrder'], order_payload, "Error creating new order")
+  order, _, order_headers = uf._send_signed_request(directory['newOrder'], order_payload, directory, alg, acct_headers, account_key, jwk, "Error creating new order")
   logger.info("Order created!")
 
   # get the authorizations that need to be completed
   for auth_url in order['authorizations']:
-      authorization, _, _ = uf._send_signed_request(auth_url, None, "Error getting challenges")
+      authorization, _, _ = uf._send_signed_request(auth_url, None, directory, alg, acct_headers, account_key, jwk, "Error getting challenges")
       domain = authorization['identifier']['value']
       logger.info("Verifying {0}...".format(domain))
 
@@ -77,7 +77,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
           raise ValueError("Wrote file to {0}, but couldn't download {1}: {2}".format(wellknown_path, wellknown_url, e))
 
       # say the challenge is done
-      uf._send_signed_request(challenge['url'], {}, "Error submitting challenges: {0}".format(domain))
+      uf._send_signed_request(challenge['url'], {}, directory, alg, acct_headers, account_key, jwk, "Error submitting challenges: {0}".format(domain))
       authorization = uf._poll_until_not(auth_url, ["pending"], "Error checking challenge status for {0}".format(domain))
       if authorization['status'] != "valid":
           raise ValueError("Challenge did not pass for {0}: {1}".format(domain, authorization))
@@ -87,7 +87,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
   # finalize the order with the csr
   logger.info("Signing certificate...")
   csr_der = uf._cmd(["openssl", "req", "-in", csr, "-outform", "DER"], err_msg="DER Export Error")
-  uf._send_signed_request(order['finalize'], {"csr": uf._b64(csr_der)}, "Error finalizing order")
+  uf._send_signed_request(order['finalize'], {"csr": uf._base64(csr_der)}, directory, alg, acct_headers, account_key, jwk, "Error finalizing order")
 
   # poll the order to monitor when it's done
   order = uf._poll_until_not(order_headers['Location'], ["pending", "processing"], "Error checking order status")
@@ -95,6 +95,6 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
       raise ValueError("Order failed: {0}".format(order))
 
   # download the certificate
-  certificate_pem, _, _ = uf._send_signed_request(order['certificate'], None, "Certificate download failed")
+  certificate_pem, _, _ = uf._send_signed_request(order['certificate'], None, directory, alg, acct_headers, account_key, jwk, "Certificate download failed")
   logger.info("Certificate signed!")
   return certificate_pem
