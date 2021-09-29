@@ -10,7 +10,7 @@ def get_cert(account_key, csr, acme_dir, logger, contact=None):
     while result is None or result['status'] in pending_statuses:
         assert (time.time() - t0 < 3600), "Polling timeout" # 1 hour timeout
         time.sleep(0 if result is None else 2)
-        result, _, _ = uf.send_signed_request(url, None, directory, alg, acct_headers, account_key, jwk,  err_msg)
+        result, _, _ = uf._send_signed_request(url, None, directory, alg, acct_headers, account_key, jwk,  err_msg)
     return result
 
   directory, acct_headers, alg, jwk = None, None, None, None # global variables
